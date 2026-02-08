@@ -4,7 +4,7 @@
 HOSTNAME=$(hostname)
 NODE_PATH="/root/.nvm/versions/node/v24.13.0/bin/"
 SERVICES=("nginx" "mongod")
-PM2_APP_NAME="orz2-backend"
+PM2_APP_NAME="orz2-prod"
 SLACK_TARGET="U08P298K3EX"
 # SLACK_WEBHOOK_URL=""
 
