@@ -40,7 +40,10 @@ echo "------------------------------------------------"
 
 
 
-# --- PS ---
+# --- PS: OOM ---
+
+# export NODE_OPTIONS="--max-old-space-size=4096"
+
 # dd if=/dev/zero of=/swapfile bs=1M count=2048
 # mkswap /swapfile && swapon /swapfile
 # echo '/swapfile none swap sw 0 0' >> /etc/fstab
