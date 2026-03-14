@@ -32,3 +32,15 @@ echo "------------------------------------------------"
 # --- 5. 手动刷新一下当前会话，确保当前进程可以使用 nvm 命令 ---
 echo "source ~/.bashrc"
 echo "------------------------------------------------"
+
+
+
+
+
+
+
+
+# --- PS ---
+# dd if=/dev/zero of=/swapfile bs=1M count=2048
+# mkswap /swapfile && swapon /swapfile
+# echo '/swapfile none swap sw 0 0' >> /etc/fstab
