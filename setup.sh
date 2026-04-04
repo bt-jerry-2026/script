@@ -33,8 +33,68 @@ echo "------------------------------------------------"
 echo "source ~/.bashrc"
 echo "------------------------------------------------"
 
+# --- 6. 安装 nginx ---
+# 更新系统软件包
+sudo dnf update -y
 
+# 安装 Nginx
+sudo dnf install nginx -y
 
+# 启动并设置开机自启
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+# 新建域名的 Nginx 配置
+DOMAIN="xshuliner.online"
+CONF_PATH="/etc/nginx/conf.d/${DOMAIN}.conf"
+
+echo "开始配置 Nginx 虚拟主机..."
+
+# 创建 Nginx 配置文件
+# 使用 cat <<EOF 结构直接写入内容
+sudo cat <<EOF > $CONF_PATH
+server {
+    listen 80;
+    server_name $DOMAIN;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+    }
+}
+EOF
+
+echo "配置文件已创建: $CONF_PATH"
+
+# 检查 Nginx 配置语法
+sudo nginx -t
+if [ $? -eq 0 ]; then
+    echo "Nginx 配置语法正确，正在重载..."
+    sudo systemctl reload nginx
+else
+    echo "Nginx 配置错误，请检查！"
+    exit 1
+fi
+
+# --- 7. 安装 Certbot
+# 安装 Python 3 基础环境
+sudo dnf install python3 python3-pip python3-devel augeas-libs -y
+
+# 使用虚拟环境安装 Certbot
+# 创建虚拟环境目录
+sudo python3 -m venv /opt/certbot/
+# 升级虚拟环境内的 pip
+sudo /opt/certbot/bin/pip install --upgrade pip
+# 安装 certbot 和 nginx 插件
+sudo /opt/certbot/bin/pip install certbot certbot-nginx
+# 创建命令软链接
+sudo ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+# 申请 SSL 证书
+sudo certbot --nginx -d xshuliner.online --email bt.jerry.2026@gmail.com --agree-tos --no-eff-email
+
+# TODO: 配置自动续签 SSL 证书
+# sudo crontab -e
+# 0 0,12 * * * /usr/bin/certbot renew --quiet --post-hook "systemctl reload nginx"
 
 
 
