@@ -6,5 +6,11 @@ openclaw config set gateway.controlUi.enabled true
 openclaw config set gateway.controlUi.basePath '"/openclaw"'
 openclaw config set gateway.controlUi.allowedOrigins '["https://xshuliner.online"]'
 
+openclaw agents add agent-fs-shuxiaolan
+openclaw agents add agent-fs-shuxiaolv
+openclaw agents add agent-fs-shuxiaozi
+openclaw agents add agent-fs-shuxiaohong
+openclaw agents add agent-fs-shuxiaohuang
+openclaw agents add agent-fs-shuxiaocheng
 
 openclaw gateway restart
