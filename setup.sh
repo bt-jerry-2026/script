@@ -53,15 +53,92 @@ echo "开始配置 Nginx 虚拟主机..."
 # 创建 Nginx 配置文件
 # 使用 cat <<EOF 结构直接写入内容
 sudo cat <<EOF > $CONF_PATH
-server {
-    listen 80;
-    server_name $DOMAIN;
 
-    location / {
-        root /usr/share/nginx/html;
-        index index.html index.htm;
-    }
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
 }
+
+server {
+  listen 80;
+  server_name www.xshuliner.online;
+
+  return 301 https://xshuliner.online$request_uri;
+}
+
+server {
+  listen 80;
+  server_name xshuliner.online;
+
+  return 301 https://xshuliner.online$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name www.xshuliner.online;
+
+  ssl_certificate /etc/letsencrypt/live/xshuliner.online/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/xshuliner.online/privkey.pem;
+  include /etc/letsencrypt/options-ssl-nginx.conf;
+  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+  return 301 https://xshuliner.online$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name xshuliner.online;
+
+  ssl_certificate /etc/letsencrypt/live/xshuliner.online/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/xshuliner.online/privkey.pem;
+  include /etc/letsencrypt/options-ssl-nginx.conf;
+  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+  location = /openclaw {
+    proxy_pass http://127.0.0.1:18789/openclaw/;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP $remote_addr;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_buffering off;
+  }
+
+  location /openclaw/ {
+    proxy_pass http://127.0.0.1:18789;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Real-IP $remote_addr;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_buffering off;
+  }
+
+  location / {
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+    try_files $uri $uri/ =404;
+  }
+}
+
 EOF
 
 echo "配置文件已创建: $CONF_PATH"
