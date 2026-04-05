@@ -4,3 +4,5 @@ openclaw config set gateway.port 18789
 openclaw config set gateway.controlUi.enabled true
 openclaw config set gateway.controlUi.basePath '"/openclaw"'
 openclaw config set gateway.controlUi.allowedOrigins '["https://xshuliner.online"]'
+
+openclaw gateway restart
