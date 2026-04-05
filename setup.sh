@@ -1,186 +1,157 @@
 #!/bin/bash
 
-# --- 1. 安装 nvm 与 Node.js 24 ---
-echo "正在安装 nvm..."
-# 下载并运行 nvm 安装脚本
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# =================================================================
+# 脚本名称: setup_server.sh
+# 适用环境: CentOS / RHEL / Fedora (使用 yum/dnf)
+# 功能: 安装 Node.js, Git, Nginx, Certbot SSL, 以及配置 Swap
+# =================================================================
 
-# 刷新一下当前会话，确保当前进程可以使用 nvm 命令
-source ~/.bashrc
+# 报错即停止运行
+set -e
 
-echo "正在通过 nvm 安装 Node.js 24..."
-nvm install 24
-nvm use 24
-nvm alias default 24
-
-# --- 2. 安装 git ---
-echo "正在安装 git..."
-sudo yum install -y git
-
-# --- 3. 创建 SSH 密钥 ---
-echo "正在生成 SSH ed25519 密钥..."
-# -f 指定路径，-N "" 表示空密码，-q 表示静默模式
-ssh-keygen -t ed25519 -C "bt.jerry.2026@gmail.com" -f ~/.ssh/id_ed25519 -N ""
-
-# --- 4. 打印公钥内容 ---
-echo "------------------------------------------------"
-echo "设置完成！以下是您的公钥内容 (id_ed25519.pub):"
-echo "------------------------------------------------"
-cat ~/.ssh/id_ed25519.pub
-echo "------------------------------------------------"
-
-# --- 5. 手动刷新一下当前会话，确保当前进程可以使用 nvm 命令 ---
-echo "source ~/.bashrc"
-echo "------------------------------------------------"
-
-# --- 6. 安装 nginx ---
-# 更新系统软件包
-sudo dnf update -y
-
-# 安装 Nginx
-sudo dnf install nginx -y
-
-# 启动并设置开机自启
-sudo systemctl start nginx
-sudo systemctl enable nginx
-
-# 新建域名的 Nginx 配置
+# --- 变量配置 ---
+EMAIL="bt.jerry.2026@gmail.com"
 DOMAIN="xshuliner.online"
+# SWAP_SIZE_MB=2048
+NODE_VERSION="24"
 CONF_PATH="/etc/nginx/conf.d/${DOMAIN}.conf"
 
-echo "开始配置 Nginx 虚拟主机..."
+echo ">>>> 开始系统初始化配置 <<<<"
 
-# 创建 Nginx 配置文件
-# 使用 cat <<EOF 结构直接写入内容
-sudo cat <<EOF > $CONF_PATH
+# --- 1. 系统更新与基础依赖 ---
+echo "正在更新系统软件包..."
+sudo dnf update -y
+sudo dnf install -y git curl python3 python3-pip python3-devel augeas-libs
 
-map $http_upgrade $connection_upgrade {
-  default upgrade;
-  ''      close;
-}
+# --- 2. 配置 Swap 分区 (预防 OOM 内存溢出) ---
+# 检查是否已经存在 swapfile
+# if [ ! -f /swapfile ]; then
+#     echo "正在创建 ${SWAP_SIZE_MB}MB Swap 分区..."
+#     sudo dd if=/dev/zero of=/swapfile bs=1M count=$SWAP_SIZE_MB
+#     sudo chmod 600 /swapfile
+#     sudo mkswap /swapfile
+#     sudo swapon /swapfile
+#     echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+#     echo "Swap 分区配置完成。"
+# else
+#     echo "Swap 分区已存在，跳过。"
+# fi
 
-server {
-  listen 80;
-  server_name www.xshuliner.online;
-
-  return 301 https://xshuliner.online$request_uri;
-}
-
-server {
-  listen 80;
-  server_name xshuliner.online;
-
-  return 301 https://xshuliner.online$request_uri;
-}
-
-server {
-  listen 443 ssl;
-  http2 on;
-  server_name www.xshuliner.online;
-
-  ssl_certificate /etc/letsencrypt/live/xshuliner.online/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/xshuliner.online/privkey.pem;
-  include /etc/letsencrypt/options-ssl-nginx.conf;
-  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-  return 301 https://xshuliner.online$request_uri;
-}
-
-server {
-  listen 443 ssl;
-  http2 on;
-  server_name xshuliner.online;
-
-  ssl_certificate /etc/letsencrypt/live/xshuliner.online/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/xshuliner.online/privkey.pem;
-  include /etc/letsencrypt/options-ssl-nginx.conf;
-  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-  location = /openclaw {
-    proxy_pass http://127.0.0.1:18789/openclaw/;
-    proxy_http_version 1.1;
-
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Real-IP $remote_addr;
-
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
-
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
-    proxy_buffering off;
-  }
-
-  location /openclaw/ {
-    proxy_pass http://127.0.0.1:18789;
-    proxy_http_version 1.1;
-
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Real-IP $remote_addr;
-
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
-
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
-    proxy_buffering off;
-  }
-
-  location / {
-    root /usr/share/nginx/html;
-    index index.html index.htm;
-    try_files $uri $uri/ =404;
-  }
-}
-
-EOF
-
-echo "配置文件已创建: $CONF_PATH"
-
-# 检查 Nginx 配置语法
-sudo nginx -t
-if [ $? -eq 0 ]; then
-    echo "Nginx 配置语法正确，正在重载..."
-    sudo systemctl reload nginx
-else
-    echo "Nginx 配置错误，请检查！"
-    exit 1
+# --- 3. 安装 nvm 与 Node.js ---
+if [ ! -d "$HOME/.nvm" ]; then
+    echo "正在安装 nvm..."
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 fi
 
-# --- 7. 安装 Certbot
-# 安装 Python 3 基础环境
-sudo dnf install python3 python3-pip python3-devel augeas-libs -y
+# 加载 nvm 环境到当前 shell 会话
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-# 使用虚拟环境安装 Certbot
-# 创建虚拟环境目录
-sudo python3 -m venv /opt/certbot/
-# 升级虚拟环境内的 pip
-sudo /opt/certbot/bin/pip install --upgrade pip
-# 安装 certbot 和 nginx 插件
-sudo /opt/certbot/bin/pip install certbot certbot-nginx
-# 创建命令软链接
-sudo ln -s /opt/certbot/bin/certbot /usr/bin/certbot
-# 申请 SSL 证书
-sudo certbot --nginx -d xshuliner.online --email bt.jerry.2026@gmail.com --agree-tos --no-eff-email
+echo "正在通过 nvm 安装 Node.js ${NODE_VERSION}..."
+nvm install $NODE_VERSION
+nvm use $NODE_VERSION
+nvm alias default $NODE_VERSION
 
-# TODO: 配置自动续签 SSL 证书
-# sudo crontab -e
-# 0 0,12 * * * /usr/bin/certbot renew --quiet --post-hook "systemctl reload nginx"
+# --- 4. 生成 SSH 密钥 ---
+if [ ! -f ~/.ssh/id_ed25519 ]; then
+    echo "正在生成 SSH ed25519 密钥..."
+    ssh-keygen -t ed25519 -C "$EMAIL" -f ~/.ssh/id_ed25519 -N ""
+else
+    echo "SSH 密钥已存在，跳过生成。"
+fi
 
+# --- 5. 安装与配置 Nginx ---
+echo "正在安装 Nginx..."
+sudo dnf install nginx -y
+sudo systemctl enable --now nginx
 
+echo "开始写入 Nginx 配置文件: $CONF_PATH"
+# 使用 sudo tee 写入需要权限的文件，避免 EOF 权限问题
+sudo tee $CONF_PATH > /dev/null <<EOF
+map \$http_upgrade \$connection_upgrade {
+    default upgrade;
+    ''      close;
+}
 
+# HTTP 重定向到 HTTPS
+server {
+    listen 80;
+    server_name ${DOMAIN} www.${DOMAIN};
+    return 301 https://${DOMAIN}\$request_uri;
+}
 
+# HTTPS 核心配置
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMAIN};
 
-# --- PS: OOM ---
+    # 证书路径由 Certbot 生成后自动填入
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
 
-# export NODE_OPTIONS="--max-old-space-size=4096"
+    location /openclaw/ {
+        proxy_pass http://127.0.0.1:18789;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        
+        proxy_read_timeout 3600s;
+        proxy_buffering off;
+    }
 
-# dd if=/dev/zero of=/swapfile bs=1M count=2048
-# mkswap /swapfile && swapon /swapfile
-# echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+        try_files \$uri \$uri/ =404;
+    }
+}
+
+# www 重定向到 non-www
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name www.${DOMAIN};
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    return 301 https://${DOMAIN}\$request_uri;
+}
+EOF
+
+# --- 6. 安装 Certbot 并自动化续签 ---
+echo "配置 Certbot SSL..."
+if [ ! -d "/opt/certbot" ]; then
+    sudo python3 -m venv /opt/certbot/
+    sudo /opt/certbot/bin/pip install --upgrade pip
+    sudo /opt/certbot/bin/pip install certbot certbot-nginx
+    sudo ln -sf /opt/certbot/bin/certbot /usr/bin/certbot
+fi
+
+# 仅在证书不存在时申请
+if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
+    sudo certbot --nginx -d ${DOMAIN} -d www.${DOMAIN} --email $EMAIL --agree-tos --no-eff-email --non-interactive
+else
+    echo "SSL 证书已存在，跳过申请。"
+fi
+
+# 设置每天凌晨 3:15 检查续签 Cron 任务，如果续签成功则重载 nginx
+CRON_JOB="15 3 * * * /usr/bin/certbot renew --quiet --post-hook 'systemctl reload nginx'"
+(sudo crontab -l 2>/dev/null | grep -v "certbot renew"; echo "$CRON_JOB") | sudo crontab -
+
+# --- 7. 最后检查与清理 ---
+sudo nginx -t && sudo systemctl reload nginx
+
+echo "------------------------------------------------"
+echo "🎉 所有的安装与配置已完成！"
+echo "Node 版本: $(node -v)"
+echo "Nginx 状态: 已启动并配置自动续签"
+echo "Swap 状态: 已开启 ${SWAP_SIZE_MB}MB"
+echo "------------------------------------------------"
+echo "以下是您的 SSH 公钥，请添加到 GitHub/GitLab:"
+cat ~/.ssh/id_ed25519.pub
+echo "------------------------------------------------"
+echo "提示: 请执行 'source ~/.bashrc' 来使 nvm 在当前终端生效。"
