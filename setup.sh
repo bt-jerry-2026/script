@@ -122,12 +122,16 @@ server {
     ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
 
+    location = /openclaw {
+        return 301 /openclaw/;
+    }
+
     location /openclaw/ {
         proxy_pass http://127.0.0.1:18789;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For \$remote_addr;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
