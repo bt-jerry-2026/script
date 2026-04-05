@@ -36,7 +36,10 @@ fi
 export NVM_DIR="$HOME/.nvm"
 if [ ! -d "$NVM_DIR" ]; then
     echo "正在安装 nvm..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    # github 镜像
+    # curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    # 使用 Gitee 上的镜像脚本（或者其他国内维护的镜像）
+    curl -fsSL https://gitee.com/mirrors/nvm/raw/v0.39.7/install.sh | bash
 fi
 
 # 核心修复：强制加载当前 Shell 的 nvm 环境
