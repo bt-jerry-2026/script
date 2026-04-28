@@ -14,10 +14,12 @@ directories=(
 )
 
 # 处理单个仓库的函数
+# 参数: $1 = 仓库路径, $2 = 模式 (pull 或 push)
 process_repo() {
     local repo_path="$1"
+    local mode="$2"
     echo "================================================"
-    echo "Processing repository: $repo_path"
+    echo "Processing repository: $repo_path (mode: $mode)"
     echo "================================================"
 
     # 检查目录是否存在
@@ -40,7 +42,7 @@ process_repo() {
 
     echo "[INFO] Current directory: $(pwd)"
 
-    # git pull
+    # git pull (两种模式都需要)
     echo "[INFO] Running git pull ..."
     if git pull; then
         echo "[OK] git pull succeeded"
@@ -49,7 +51,14 @@ process_repo() {
         return 1
     fi
 
-    # 检查是否有变更需要提交（工作区或暂存区）
+    # 如果是 pull 模式，到此结束
+    if [[ "$mode" == "pull" ]]; then
+        echo "[INFO] Mode is 'pull' - skipping add, commit, push."
+        return 0
+    fi
+
+    # 以下为 push 模式（即完整流程）
+    # 检查是否有变更需要提交
     if [[ -z "$(git status --porcelain)" ]]; then
         echo "[INFO] No changes to commit, skipping add/commit/push."
         return 0
@@ -64,7 +73,7 @@ process_repo() {
         return 1
     fi
 
-    # git commit -m 使用常量 COMMIT_MSG
+    # git commit
     echo "[INFO] Running git commit -m \"$COMMIT_MSG\""
     if git commit -m "$COMMIT_MSG"; then
         echo "[OK] git commit succeeded"
@@ -86,15 +95,24 @@ process_repo() {
     return 0
 }
 
-# 主循环
+# 主函数
 main() {
+    # 确定运行模式：参数为 "push" 则完整流程，否则默认为 "pull"
+    local mode="pull"
+    if [[ $# -ge 1 && "$1" == "push" ]]; then
+        mode="push"
+    elif [[ $# -ge 1 && "$1" != "pull" ]]; then
+        echo "[WARNING] Unknown parameter '$1'. Use 'pull' or 'push'. Defaulting to 'pull'." >&2
+    fi
+    echo "[INFO] Running in '$mode' mode."
+
     local failed=()
     for repo in "${directories[@]}"; do
-        process_repo "$repo"
+        process_repo "$repo" "$mode"
         if [[ $? -ne 0 ]]; then
             failed+=("$repo")
         fi
-        echo ""   # 输出空行分隔不同仓库的日志
+        echo ""   # 输出空行分隔
     done
 
     # 最终汇总
@@ -111,5 +129,5 @@ main() {
     echo "================================================"
 }
 
-# 执行主函数
-main
+# 执行主函数，传递所有命令行参数
+main "$@"
