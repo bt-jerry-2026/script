@@ -19,79 +19,79 @@ process_repo() {
     local repo_path="$1"
     local mode="$2"
     echo "================================================"
-    echo "Processing repository: $repo_path (mode: $mode)"
+    echo "📂 正在处理仓库: $repo_path (模式: $mode)"
     echo "================================================"
 
     # 检查目录是否存在
     if [[ ! -d "$repo_path" ]]; then
-        echo "[ERROR] Directory does not exist: $repo_path" >&2
+        echo "❌ 错误: 目录不存在 -> $repo_path" >&2
         return 1
     fi
 
     # 检查是否为 Git 仓库
     if [[ ! -d "$repo_path/.git" ]]; then
-        echo "[ERROR] Not a Git repository: $repo_path" >&2
+        echo "❌ 错误: 不是 Git 仓库 -> $repo_path" >&2
         return 1
     fi
 
     # 进入仓库目录
     cd "$repo_path" || {
-        echo "[ERROR] Cannot cd into $repo_path" >&2
+        echo "❌ 错误: 无法进入目录 -> $repo_path" >&2
         return 1
     }
 
-    echo "[INFO] Current directory: $(pwd)"
+    echo "📁 当前目录: $(pwd)"
 
     # git pull (两种模式都需要)
-    echo "[INFO] Running git pull ..."
+    echo "⬇️  正在执行 git pull ..."
     if git pull; then
-        echo "[OK] git pull succeeded"
+        echo "✅ git pull 成功"
     else
-        echo "[ERROR] git pull failed" >&2
+        echo "❌ git pull 失败" >&2
         return 1
     fi
 
     # 如果是 pull 模式，到此结束
     if [[ "$mode" == "pull" ]]; then
-        echo "[INFO] Mode is 'pull' - skipping add, commit, push."
+        echo "ℹ️  模式为 'pull'，跳过 add / commit / push。"
         return 0
     fi
 
-    # 以下为 push 模式（即完整流程）
+    # 以下为 push 模式（完整流程）
     # 检查是否有变更需要提交
     if [[ -z "$(git status --porcelain)" ]]; then
-        echo "[INFO] No changes to commit, skipping add/commit/push."
+        echo "ℹ️  没有检测到任何变更，跳过 add / commit / push。"
         return 0
     fi
 
     # git add .
-    echo "[INFO] Running git add ."
+    echo "➕ 正在执行 git add ."
     if git add .; then
-        echo "[OK] git add . succeeded"
+        echo "✅ git add . 成功"
     else
-        echo "[ERROR] git add . failed" >&2
+        echo "❌ git add . 失败" >&2
         return 1
     fi
 
     # git commit
-    echo "[INFO] Running git commit -m \"$COMMIT_MSG\""
+    echo "📝 正在执行 git commit -m \"$COMMIT_MSG\""
     if git commit -m "$COMMIT_MSG"; then
-        echo "[OK] git commit succeeded"
+        echo "✅ git commit 成功"
     else
-        echo "[ERROR] git commit failed" >&2
+        echo "❌ git commit 失败" >&2
         return 1
     fi
 
     # git push
-    echo "[INFO] Running git push"
+    echo "📤 正在执行 git push"
     if git push; then
-        echo "[OK] git push succeeded"
+        echo "✅ git push 成功"
     else
-        echo "[ERROR] git push failed" >&2
+        echo "❌ git push 失败" >&2
         return 1
     fi
 
-    echo "[INFO] Successfully processed $repo_path"
+    echo "🎉 仓库处理完成: $repo_path"
     return 0
 }
 
@@ -102,9 +102,9 @@ main() {
     if [[ $# -ge 1 && "$1" == "push" ]]; then
         mode="push"
     elif [[ $# -ge 1 && "$1" != "pull" ]]; then
-        echo "[WARNING] Unknown parameter '$1'. Use 'pull' or 'push'. Defaulting to 'pull'." >&2
+        echo "⚠️  未知参数 '$1'，请使用 'pull' 或 'push'。将默认使用 'pull' 模式。" >&2
     fi
-    echo "[INFO] Running in '$mode' mode."
+    echo "🚀 运行模式: $mode"
 
     local failed=()
     for repo in "${directories[@]}"; do
@@ -112,18 +112,18 @@ main() {
         if [[ $? -ne 0 ]]; then
             failed+=("$repo")
         fi
-        echo ""   # 输出空行分隔
+        echo ""   # 输出空行分隔不同仓库
     done
 
     # 最终汇总
     echo "================================================"
-    echo "Summary:"
+    echo "📊 执行汇总："
     if [[ ${#failed[@]} -eq 0 ]]; then
-        echo "All repositories processed successfully."
+        echo "✅ 所有仓库均处理成功。"
     else
-        echo "The following repositories encountered errors:"
+        echo "❌ 以下仓库处理时出现错误："
         for f in "${failed[@]}"; do
-            echo "  - $f"
+            echo "   - $f"
         done
     fi
     echo "================================================"
